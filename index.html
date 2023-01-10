@@ -11,20 +11,51 @@
             padding: 0;
         }
         .canvas-wrapper {
-            width: 512px;
+            width: 100%;
             max-width: 512px;
             margin: 0 auto;
         }
         canvas {
             width: 100%;
-            height: 100%;
         }
+        #face-btn {
+            padding: 1em;
+            border-radius: 15px;
+            background-color: slateblue;
+            cursor: pointer;
+            display: inline-block;
+            color: black;
+            border: none;
+        }
+        .container {
+            width: 100%;
+            max-width: 758px;
+            margin: 0 auto;
+        }
+
+        .grid {
+            display: grid;
+        }
+        .two-section {
+            grid-template-columns: 1fr 1fr;
+            column-gap: 1em;
+        }
+
     </style>
 </head>
 <body>
-    <div class="canvas-wrapper">
-        <canvas width="500" height="500"></canvas>
+    <div class="container grid two-section">
+        <div class="canvas-wrapper">
+            <canvas width="500" height="500"></canvas>
+            <video hidden></video>
+        </div>
+        <div class="settings">
+            <button type="button" class="btn" id="face-btn" disabled>Use Face Controller</div>
+        </div>
     </div>
-    <script type="text/javascript" src="face-breakout.js"></script>
+
+    <script type="text/javascript" src="opencv.js" defer></script>
+    <script type="text/javascript" src="utils.js" defer></script>
+    <script type="text/javascript" src="face-breakout.js" defer></script>
 </body>
 </html>

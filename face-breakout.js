@@ -1,9 +1,23 @@
 const canvas = document.querySelector("canvas");
+const video = document.querySelector("video");
+const faceBtn = document.querySelector("#face-btn");
 const ctx = canvas.getContext("2d");
+let faceController = false;
+let cap, img, gray, faces, classifier;
 const states = {
     standby: "standby",
     play: "play"
 };
+
+function matchVideoDims() {
+    video.width = canvas.width;
+    video.height = canvas.height;
+    console.log(img);
+    if(img !== undefined) {
+        cv.resize(img, img, video.height, video.width);
+        console.log(`${img.width}, ${img.height}`);
+    }
+}
 
 function ballBoxInterection(pos, rad, box) {
     return pos.x + rad > box.min.x && pos.x - rad < box.max.x && pos.y + rad > box.min.y && pos.y - rad < box.max.y;
@@ -70,7 +84,31 @@ class Breakout {
         }
     }
 
+    updatePaddlePos(x) {
+        this.paddle.min.x = x - this.brickWidth / 2;
+        this.paddle.max.x = x + this.brickWidth / 2;
+    }
+
     update(deltaTime) {
+        if(faceController) {
+            if(img !== undefined) {
+                cap.read(img);
+                cv.flip(img, img, 1);
+                cv.cvtColor(img, gray, cv.COLOR_RGBA2GRAY, 0);
+                try {
+                    classifier.detectMultiScale(gray, faces, 1.1, 3, 0);
+                    if (faces.size() >= 1) {
+                        const face = faces.get(0);
+                        const x = face.x + face.width / 2;
+                        this.updatePaddlePos(x);
+                    }
+                }
+                catch(err) {
+                    console.error(err);
+                }
+
+            }
+        }
         if(this.state === states.standby) {
             this.ballPos = {
                 x: (this.paddle.min.x + this.paddle.max.x) / 2,
@@ -135,7 +173,6 @@ class Breakout {
             }
             this.ballPos.x = this.ballPos.x + this.ballDir.x * nextT;
             this.ballPos.y = this.ballPos.y + this.ballDir.y * nextT;
-
         }
         else {
             alert(`invalid state: ${this.state}`)
@@ -143,10 +180,18 @@ class Breakout {
     }
 
     draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "black";
-
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if(faceController) {
+            if(img !== undefined) {
+                // cap.read(img);
+                // cv.flip(img, img, 1);
+                cv.imshow(canvas, img);
+            }
+        }
+        else {
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
         for(const brick of this.bricks) {
             ctx.fillStyle = brick.color;
             ctx.fillRect(
@@ -169,6 +214,16 @@ class Breakout {
         ctx.beginPath();
         ctx.arc(this.ballPos.x, this.ballPos.y, this.ballRadius, 0, 360);
         ctx.fill();
+
+        if(this.state === states.standby) {
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, canvas.height / 2 - 50, canvas.width, 50);
+            ctx.fillStyle = "white"
+            ctx.textAlign = "center";
+            ctx.font = "48px Arial";
+            ctx.textBaseline = "bottom";
+            ctx.fillText("Click To Start", canvas.width / 2, canvas.height/2);
+        }
     }
 
     mainloop() {
@@ -187,17 +242,63 @@ class Breakout {
     }
 }
 
+function rerange(value, oldLow, oldHi, newLow, newHi) {
+    return (((value - oldLow) * (newHi - newLow)) / (oldHi - oldMin)) + newLow;
+}
+
 function main() {
+    const utils = new Utils("errorMessage");
+    cv['onRuntimeInitialized'] = () => {
+        matchVideoDims();
+        cap = new cv.VideoCapture(video);
+        img = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+        gray = new cv.Mat();
+        faces = new cv.RectVector();
+        classifier = new cv.CascadeClassifier();
+        const faceFile = "haarcascade_frontalface_default.xml";
+        utils.createFileFromUrl(faceFile, faceFile, () => {
+            classifier.load(faceFile);
+            faceBtn.removeAttribute("disabled");
+            faceBtn.addEventListener("click", () => {
+                if (!faceController) {
+                    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+                        .then(function (stream) {
+                            video.srcObject = stream;
+                            video.play();
+                            faceController = true;
+                            faceBtn.textContent = "Use Mouse Controller";
+                        })
+                        .catch(function (err) {
+                            console.log("An error occurred! " + err);
+                        });
+                } else {
+                    video.pause();
+                    video.srcObject.getTracks()[0].stop();
+                    video.src = "";
+                    faceController = false;
+                    faceBtn.textContent = "Use Face Controller";
+                }
+            });
+        });
+
+
+    }
     const game = new Breakout();
     canvas.addEventListener("mousemove", (event) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        game.paddle.min.x = x - game.brickWidth / 2;
-        game.paddle.max.x = x + game.brickWidth / 2;
+        if(!faceController) {
+            const rect = canvas.getBoundingClientRect();
+            const rectWidth = rect.right - rect.left;
+            const ratioWidth = rectWidth / canvas.width;
+            const x = (event.clientX - rect.left) / ratioWidth;
+
+            game.paddle.min.x = x - game.brickWidth / 2;
+            game.paddle.max.x = x + game.brickWidth / 2;
+        }
     });
     canvas.addEventListener("click", () => {
         game.startPlayState();
     });
+    canvas.addEventListener("resize", matchVideoDims);
     game.mainloop();
 }
 
