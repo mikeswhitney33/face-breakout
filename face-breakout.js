@@ -3,7 +3,7 @@ const video = document.querySelector("video");
 const faceBtn = document.querySelector("#face-btn");
 const ctx = canvas.getContext("2d");
 let faceController = false;
-let cap, img, gray, faces, classifier;
+let cap, img, smallImg, gray, faces, classifier;
 const states = {
     standby: "standby",
     play: "play"
@@ -32,6 +32,13 @@ class Breakout {
     constructor() {
         this.state = states.standby;
         this.prevTime;
+
+        this.playRect = {
+            left: 50,
+            right: canvas.width - 50,
+            top: 0,
+            bottom: canvas.height,
+        };
 
         this.brickWidth = canvas.width / 10;
         this.brickHeight = 10;
@@ -65,8 +72,8 @@ class Breakout {
     }
 
     initBricks() {
-        for(let x = 0;x < canvas.width; x += this.brickWidth) {
-            for(let row = 0;row < this.brickColors.length;row++) {
+        for(let x = this.playRect.left;x < this.playRect.right; x += this.brickWidth) {
+            for(let row = this.playRect.top;row < this.brickColors.length;row++) {
                 const y = row * this.brickHeight;
                 this.bricks.push({
                     min: {x: x, y: y},
@@ -94,13 +101,14 @@ class Breakout {
             if(img !== undefined) {
                 cap.read(img);
                 cv.flip(img, img, 1);
-                cv.cvtColor(img, gray, cv.COLOR_RGBA2GRAY, 0);
+                cv.resize(img, smallImg, new cv.Size(), 1 / 4, 1 / 4, cv.INTER_AREA);
+                cv.cvtColor(smallImg, gray, cv.COLOR_RGBA2GRAY, 0);
                 try {
                     classifier.detectMultiScale(gray, faces, 1.1, 3, 0);
                     if (faces.size() >= 1) {
                         const face = faces.get(0);
                         const x = face.x + face.width / 2;
-                        this.updatePaddlePos(x);
+                        this.updatePaddlePos(4 * x);
                     }
                 }
                 catch(err) {
@@ -162,7 +170,7 @@ class Breakout {
                     this.ballDir = {x: 1, y: -1};
                 }
             }
-            else if(nextPos.x + this.ballRadius > canvas.width || nextPos.x - this.ballRadius < 0) {
+            else if(nextPos.x + this.ballRadius > this.playRect.right || nextPos.x - this.ballRadius < this.playRect.left) {
                 this.ballDir.x *= -1;
             }
             else if(nextPos.y - this.ballRadius < 0) {
@@ -192,6 +200,9 @@ class Breakout {
             ctx.fillStyle = "black";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, this.playRect.left, canvas.height);
+        ctx.fillRect(this.playRect.right, 0, canvas.width - this.playRect.right, canvas.height);
         for(const brick of this.bricks) {
             ctx.fillStyle = brick.color;
             ctx.fillRect(
@@ -217,7 +228,7 @@ class Breakout {
 
         if(this.state === states.standby) {
             ctx.fillStyle = "black";
-            ctx.fillRect(0, canvas.height / 2 - 50, canvas.width, 50);
+            ctx.fillRect(this.playRect.left, canvas.height / 2 - 50, this.playRect.right - this.playRect.left, 50);
             ctx.fillStyle = "white"
             ctx.textAlign = "center";
             ctx.font = "48px Arial";
@@ -252,6 +263,7 @@ function main() {
         matchVideoDims();
         cap = new cv.VideoCapture(video);
         img = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+        smallImg = new cv.Mat();
         gray = new cv.Mat();
         faces = new cv.RectVector();
         classifier = new cv.CascadeClassifier();
@@ -280,8 +292,6 @@ function main() {
                 }
             });
         });
-
-
     }
     const game = new Breakout();
     canvas.addEventListener("mousemove", (event) => {
