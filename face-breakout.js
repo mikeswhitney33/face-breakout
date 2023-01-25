@@ -2,6 +2,7 @@ const canvas = document.querySelector("canvas");
 const video = document.querySelector("video");
 const faceBtn = document.querySelector("#face-btn");
 const ctx = canvas.getContext("2d");
+const infoSpan = document.querySelector("#info");
 let faceController = false;
 let cap, img, smallImg, gray, faces, classifier;
 const states = {
@@ -32,6 +33,16 @@ class Breakout {
     constructor() {
         this.state = states.standby;
         this.prevTime;
+        this.score = 0;
+        this.lives = 3;
+        this.highScore = localStorage.getItem("highScore");
+        if(this.highScore === null) {
+            this.highScore = 0;
+        }
+        else {
+            this.highScore = parseInt(this.highScore);
+        }
+
 
         this.playRect = {
             left: 50,
@@ -72,6 +83,7 @@ class Breakout {
     }
 
     initBricks() {
+        this.bricks = [];
         for(let x = this.playRect.left;x < this.playRect.right; x += this.brickWidth) {
             for(let row = this.playRect.top;row < this.brickColors.length;row++) {
                 const y = row * this.brickHeight;
@@ -147,6 +159,11 @@ class Breakout {
                     this.ballDir.y *= -1;
                 }
                 this.bricks.splice(i, 1);
+                this.score++;
+                if(this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem("highScore", `${this.highScore}`);
+                }
             }
             else if(ballBoxInterection(nextPos, this.ballRadius, this.paddle)) {
                 const step = this.brickWidth / 5;
@@ -178,6 +195,12 @@ class Breakout {
             }
             else if(nextPos.y + this.ballRadius > canvas.height) {
                 this.state = states.standby;
+                this.lives--;
+                if(this.lives < 0) {
+                    this.lives = 3;
+                    this.score = 0;
+                    this.initBricks();
+                }
             }
             this.ballPos.x = this.ballPos.x + this.ballDir.x * nextT;
             this.ballPos.y = this.ballPos.y + this.ballDir.y * nextT;
@@ -235,6 +258,8 @@ class Breakout {
             ctx.textBaseline = "bottom";
             ctx.fillText("Click To Start", canvas.width / 2, canvas.height/2);
         }
+
+        infoSpan.innerHTML = `Lives: ${this.lives}  Score: ${this.score}  High Score: ${this.highScore}`;
     }
 
     mainloop() {
