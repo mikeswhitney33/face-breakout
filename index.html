@@ -9,6 +9,7 @@
         body {
             margin: 0;
             padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
         }
         .canvas-wrapper {
             width: 100%;
@@ -37,8 +38,12 @@
             display: grid;
         }
         .two-section {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             column-gap: 1em;
+            justify-items: center;
+        }
+        .text-center {
+            text-align: center;
         }
 
     </style>
@@ -46,6 +51,7 @@
 <body>
     <div class="container grid two-section">
         <div class="canvas-wrapper">
+            <div id="info" class="text-center"></div>
             <canvas width="500" height="500"></canvas>
             <video hidden></video>
         </div>
